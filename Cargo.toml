@@ -11,3 +11,7 @@ tui = "0.9.5"
 termion = "1.5.5"
 pi-hole-api = "0.1.1"
 tokio = "0.2.21"
+chrono = "0.4.11"
+serde_json = "1.0.55"
+structopt = "0.3.14"
+serde = { version = "1.0.106", features = ["derive"] }
