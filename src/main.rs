@@ -52,6 +52,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Key::Right => {
                     app.next_server();
                 }
+                Key::Char(' ') => {
+                    app.on_space();
+                }
                 _ => {}
             },
             Event::Tick => {

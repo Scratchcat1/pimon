@@ -56,6 +56,10 @@ impl App {
             })
         }
     }
+
+    pub fn on_space(&mut self) {
+        self.on_tick();
+    }
 }
 
 impl From<PimonConfig> for App {
