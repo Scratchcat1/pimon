@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::path::PathBuf;
+use std::sync::mpsc::{self};
+use std::thread;
 use std::time::{Duration, Instant};
 use tokio::runtime::Runtime;
 
@@ -15,18 +17,63 @@ pub struct PiHoleData {
     pub over_time_data: Option<OverTimeData>,
 }
 
+struct BackgroundUpdater {
+    handle: thread::JoinHandle<()>,
+    receiver: mpsc::Receiver<Option<PiHoleData>>,
+}
+
 pub struct PiHoleServer {
     pub name: String,
     pub host: String,
     pub api_key: Option<String>,
     pub last_update: Instant,
     pub last_data: PiHoleData,
+    background_updater: Option<BackgroundUpdater>,
+}
+
+impl PiHoleServer {
+    pub fn run_background_update(&mut self) {
+        if self.background_updater.is_none() {
+            let (tx, rx) = mpsc::channel();
+            let host = self.host.clone();
+            let api_key = self.api_key.clone();
+            let handle = thread::spawn(move || background_update(tx, host, api_key));
+
+            self.background_updater = Some(BackgroundUpdater {
+                handle,
+                receiver: rx,
+            });
+        }
+    }
+
+    pub fn check_background_update(&mut self) {
+        let mut join = false;
+        match &self.background_updater {
+            Some(background_updater) => match background_updater
+                .receiver
+                .recv_timeout(Duration::from_millis(10))
+            {
+                Ok(option_pi_hole_data) => {
+                    match option_pi_hole_data {
+                        Some(pi_hole_data) => self.last_data = pi_hole_data,
+                        None => {}
+                    }
+                    join = true;
+                }
+                Err(_) => {}
+            },
+            None => {}
+        }
+        if join {
+            self.background_updater = None;
+        }
+    }
 }
 
 pub struct App {
     pub selected_server_index: usize,
     pub servers: Vec<PiHoleServer>,
-    pub update_delay: Duration,
+    pub update_delay: u64,
 }
 
 impl App {
@@ -44,17 +91,22 @@ impl App {
 
     pub fn on_tick(&mut self) {
         let server = &mut self.servers[self.selected_server_index];
-        if Instant::now().duration_since(server.last_update) > self.update_delay {
-            let api = PiHoleAPI::new(server.host.clone(), server.api_key.clone());
-            let mut rt = Runtime::new().expect("Failed to start async runtime");
+        if Instant::now().duration_since(server.last_update)
+            > Duration::from_millis(self.update_delay)
+        {
+            server.run_background_update();
+            // let api = PiHoleAPI::new(server.host.clone(), server.api_key.clone());
+            // let mut rt = Runtime::new().expect("Failed to start async runtime");
 
-            rt.block_on(async {
-                server.last_data.summary = api.get_summary().await.ok();
-                server.last_data.top_sources = api.get_top_clients(None).await.ok();
-                server.last_data.top_items = api.get_top_items(None).await.ok();
-                server.last_data.over_time_data = api.get_over_time_data_10_mins().await.ok();
-            })
+            // rt.block_on(async {
+            //     server.last_data.summary = api.get_summary().await.ok();
+            //     server.last_data.top_sources = api.get_top_clients(None).await.ok();
+            //     server.last_data.top_items = api.get_top_items(None).await.ok();
+            //     server.last_data.over_time_data = api.get_over_time_data_10_mins().await.ok();
+            // })
         }
+
+        server.check_background_update();
     }
 
     pub fn on_space(&mut self) {
@@ -66,7 +118,7 @@ impl From<PimonConfig> for App {
     fn from(config: PimonConfig) -> Self {
         App {
             selected_server_index: 0,
-            update_delay: Duration::from_millis(config.update_delay),
+            update_delay: config.update_delay,
             servers: config
                 .servers
                 .iter()
@@ -83,6 +135,7 @@ impl From<PimonConfig> for App {
                         top_items: None,
                         over_time_data: None,
                     },
+                    background_updater: None,
                 })
                 .collect(),
         }
@@ -118,4 +171,19 @@ pub fn order_convert_string_num_map(map: &HashMap<String, u64>) -> Vec<Vec<Strin
         .iter()
         .map(|(domain, count)| vec![domain.clone(), count.to_string()])
         .collect()
+}
+
+fn background_update(tx: mpsc::Sender<Option<PiHoleData>>, host: String, api_key: Option<String>) {
+    let api = PiHoleAPI::new(host.clone(), api_key);
+    let mut rt = Runtime::new().expect("Failed to start async runtime");
+
+    rt.block_on(async {
+        tx.send(Some(PiHoleData {
+            summary: api.get_summary().await.ok(),
+            top_sources: api.get_top_clients(None).await.ok(),
+            top_items: api.get_top_items(None).await.ok(),
+            over_time_data: api.get_over_time_data_10_mins().await.ok(),
+        }))
+    })
+    .unwrap();
 }
