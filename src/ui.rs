@@ -145,12 +145,14 @@ where
             // Display with left as the latest entry.
             // Otherwise the data is cut off on the right side.
             queries_over_time_rows.sort_by(|a, b| b.0.cmp(a.0));
-            let queries_over_time_rows: Vec<(String, u64)> = queries_over_time_rows
+            let squashed_queries_over_time =
+                util::squash_queries_over_time(&queries_over_time_rows, app.graph_squash_factor);
+            let queries_over_time_rows: Vec<(String, u64)> = squashed_queries_over_time
                 .iter()
                 .map(|(timestamp, count)| {
-                    let naive = NaiveDateTime::from_timestamp(**timestamp, 0);
+                    let naive = NaiveDateTime::from_timestamp(*timestamp, 0);
                     let datetime: DateTime<Utc> = DateTime::from_utc(naive, Utc);
-                    (datetime.format("%H:%M").to_string(), **count)
+                    (datetime.format("%H:%M").to_string(), *count)
                 })
                 .collect();
 

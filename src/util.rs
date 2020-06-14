@@ -74,6 +74,7 @@ pub struct App {
     pub selected_server_index: usize,
     pub servers: Vec<PiHoleServer>,
     pub update_delay: u64,
+    pub graph_squash_factor: usize,
 }
 
 impl App {
@@ -112,6 +113,18 @@ impl App {
     pub fn on_space(&mut self) {
         self.on_tick();
     }
+
+    pub fn on_z(&mut self) {
+        if self.graph_squash_factor > 1 {
+            self.graph_squash_factor /= 2;
+        }
+    }
+
+    pub fn on_x(&mut self) {
+        if self.graph_squash_factor < usize::MAX {
+            self.graph_squash_factor *= 2;
+        }
+    }
 }
 
 impl From<PimonConfig> for App {
@@ -119,6 +132,7 @@ impl From<PimonConfig> for App {
         App {
             selected_server_index: 0,
             update_delay: config.update_delay,
+            graph_squash_factor: 1,
             servers: config
                 .servers
                 .iter()
@@ -186,4 +200,32 @@ fn background_update(tx: mpsc::Sender<Option<PiHoleData>>, host: String, api_key
         }))
     })
     .unwrap();
+}
+
+pub fn squash_queries_over_time(
+    queries: &Vec<(&i64, &u64)>,
+    squash_factor: usize,
+) -> Vec<(i64, u64)> {
+    let mut squashed = Vec::new();
+    let mut count = 0;
+    let mut sum = 0;
+    let mut leading_timestamp = 0;
+
+    for (timestamp, query_count) in queries {
+        if count == 0 {
+            leading_timestamp = **timestamp;
+        }
+        count += 1;
+        sum += **query_count;
+        if count >= squash_factor {
+            squashed.push((leading_timestamp, sum));
+            count = 0;
+            sum = 0;
+        }
+    }
+    if count > 0 {
+        squashed.push((leading_timestamp, sum));
+    }
+
+    squashed
 }
