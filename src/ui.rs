@@ -65,16 +65,25 @@ where
                     "enabled" => Color::Green,
                     _ => Color::Red,
                 };
+                let styled_api_key_colour = match &app.servers[app.selected_server_index].api_key {
+                    Some(_) => Color::Green,
+                    None => Color::Red,
+                };
+
                 let text = vec![
                     Text::raw("Status: "),
                     Text::styled(
                         format!("{}\n", summary.status),
                         Style::default().fg(styled_status_colour),
                     ),
-                    Text::raw(format!(
-                        "API key: {}\n",
-                        !&app.servers[app.selected_server_index].api_key.is_none()
-                    )),
+                    Text::raw("API key: "),
+                    Text::styled(
+                        format!(
+                            "{}\n",
+                            !&app.servers[app.selected_server_index].api_key.is_none()
+                        ),
+                        Style::default().fg(styled_api_key_colour),
+                    ),
                     Text::raw(format!("Privacy level: {}\n", &summary.privacy_level)),
                     Text::raw(format!(
                         "Blocklist size: {}\n",
