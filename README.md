@@ -1,6 +1,9 @@
 # Pimon
 Pi-Hole TUI monitoring tool
 
+## Example
+![Example gif](./example.gif)
+
 ## Usage
 - Quit: `q`
 - Force update: `<Space>`
