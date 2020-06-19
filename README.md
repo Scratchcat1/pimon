@@ -4,7 +4,16 @@ Pi-Hole TUI monitoring tool
 ## Example
 ![Example gif](./example.gif)
 
+# Features
+- Support for multiple servers
+- Optional API Keys
+- Query graph with zoom
+- Enable/Disable Pi-Hole
+
 ## Usage
+For convenience you may want to alias `pimon` to point at a particular config e.g. `pimon -c $HOME/.config/pimon/pimon.json`.
+
+### Keybindings:
 - Quit: `q`
 - Force update: `<Space>`
 - Tab navigation:
@@ -13,6 +22,8 @@ Pi-Hole TUI monitoring tool
 - Graph navigation:
   - Zoom in: `z`
   - Zoom in: `x`
+- Enable current server: `e`
+- Disable current server: `d`
 
 ## CLI options
 ```

@@ -20,6 +20,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Parse command line arguments
     let args = Cli::from_args();
 
+    let mut app = util::load_server_from_json(&args.config_file_path)?;
+
+    if app.servers.len() == 0 {
+        println!("Configuration file doesn't contain any servers. Exiting");
+        std::process::exit(1);
+    }
+
     // Terminal initialization
     let stdout = io::stdout().into_raw_mode()?;
     let stdout = MouseTerminal::from(stdout);
@@ -30,11 +37,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup event handlers
     let events = Events::with_config(Config {
-        tick_rate: Duration::from_millis(500),
+        tick_rate: Duration::from_millis(1000),
         ..Config::default()
     });
-
-    let mut app = util::load_server_from_json(&args.config_file_path)?;
 
     app.on_tick();
 
