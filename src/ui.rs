@@ -8,7 +8,7 @@ use tui::{
     Frame,
 };
 
-pub fn draw_help_bar<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
+pub fn draw_help_bar<B>(f: &mut Frame<B>, area: Rect)
 where
     B: Backend,
 {
@@ -231,7 +231,7 @@ where
         .split(f.size());
 
     // Help bar
-    draw_help_bar(f, app, chunks[0]);
+    draw_help_bar(f, chunks[0]);
 
     // Pi Hole tabs
     draw_tabs(f, app, chunks[1]);

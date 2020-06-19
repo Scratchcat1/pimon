@@ -1,5 +1,5 @@
 # Pimon
-Pi-Hole TUI monitoring tool
+Pi-Hole terminal monitoring tool
 
 ## Example
 ![Example gif](./example.gif)
@@ -24,6 +24,8 @@ For convenience you may want to alias `pimon` to point at a particular config e.
   - Zoom in: `x`
 - Enable current server: `e`
 - Disable current server: `d`
+
+## Installation
 
 ## CLI options
 ```
