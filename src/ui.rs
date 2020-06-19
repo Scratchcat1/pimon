@@ -8,6 +8,17 @@ use tui::{
     Frame,
 };
 
+pub fn draw_help_bar<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
+where
+    B: Backend,
+{
+    let text = vec![Text::raw(
+        "E: Enable  D: Disable  Z: Zoom+  X: Zoom-  Space: Update  LArrow: Prev  RArrow: Next",
+    )];
+    let paragraph = Paragraph::new(text.iter()).style(Style::default().bg(Color::Cyan));
+    f.render_widget(paragraph, area);
+}
+
 pub fn draw_tabs<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
 where
     B: Backend,
@@ -16,8 +27,8 @@ where
     let tabs = Tabs::default()
         .block(Block::default().borders(Borders::ALL).title("Pi Hole"))
         .titles(&server_names)
-        .style(Style::default().fg(Color::Yellow))
-        .highlight_style(Style::default().fg(Color::Green))
+        .style(Style::default().fg(Color::LightYellow))
+        .highlight_style(Style::default().fg(Color::LightGreen))
         .select(app.selected_server_index);
     f.render_widget(tabs, area);
 }
@@ -62,11 +73,11 @@ where
         Some(summary) => {
             {
                 let styled_status_colour = match summary.status.as_str() {
-                    "enabled" => Color::Green,
+                    "enabled" => Color::LightGreen,
                     _ => Color::Red,
                 };
                 let styled_api_key_colour = match &app.servers[app.selected_server_index].api_key {
-                    Some(_) => Color::Green,
+                    Some(_) => Color::LightGreen,
                     None => Color::Red,
                 };
 
@@ -109,7 +120,6 @@ where
                     Text::raw(format!("Forwarded: {}\n", &summary.queries_forwarded)),
                     Text::raw(format!("Cached: {}\n", &summary.queries_cached)),
                     Text::raw(format!("Unique clients: {}\n", &summary.unique_clients)),
-                    // Text::raw(format!("Gravity update: {} days\n", &summary.unique_clients)),
                 ];
                 let paragraph = Paragraph::new(text.iter()).block(other_stats_block);
                 f.render_widget(paragraph, chunks[2]);
@@ -190,7 +200,7 @@ pub fn draw_list<B>(
 ) where
     B: Backend,
 {
-    let up_style = Style::default().fg(Color::Green);
+    let up_style = Style::default().fg(Color::LightGreen);
     let rows = rows.iter().map(|row| {
         let style = up_style;
         Row::StyledData(row.iter(), style)
@@ -210,6 +220,7 @@ where
         .direction(Direction::Vertical)
         .constraints(
             [
+                Constraint::Length(1),
                 Constraint::Length(3),
                 Constraint::Length(6),
                 Constraint::Percentage(40),
@@ -219,15 +230,18 @@ where
         )
         .split(f.size());
 
+    // Help bar
+    draw_help_bar(f, app, chunks[0]);
+
     // Pi Hole tabs
-    draw_tabs(f, app, chunks[0]);
+    draw_tabs(f, app, chunks[1]);
 
     // Overview
-    draw_overview(f, app, chunks[1]);
+    draw_overview(f, app, chunks[2]);
 
     // Queries chart
     // Vec<String, u64>
-    draw_queries_chart(f, app, chunks[2]);
+    draw_queries_chart(f, app, chunks[3]);
 
     // Top domains
     {
@@ -241,7 +255,7 @@ where
                 ]
                 .as_ref(),
             )
-            .split(chunks[3]);
+            .split(chunks[4]);
 
         let top_queries_rows = match &app.servers[app.selected_server_index].last_data.top_items {
             Some(top_items) => util::order_convert_string_num_map(&top_items.top_queries),

@@ -4,7 +4,7 @@ mod util;
 
 use event::{Config, Event, Events};
 use std::path::PathBuf;
-use std::{error::Error, io, time::Duration};
+use std::{error::Error, io, thread, time::Duration};
 use structopt::StructOpt;
 use termion::{event::Key, input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{backend::TermionBackend, Terminal};
@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup event handlers
     let events = Events::with_config(Config {
-        tick_rate: Duration::from_millis(2000),
+        tick_rate: Duration::from_millis(500),
         ..Config::default()
     });
 
@@ -60,6 +60,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 Key::Char('x') => {
                     app.on_x();
+                }
+                Key::Char('e') => {
+                    app.on_e();
+                }
+                Key::Char('d') => {
+                    app.on_d();
                 }
                 _ => {}
             },

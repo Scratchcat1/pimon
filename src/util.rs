@@ -96,15 +96,6 @@ impl App {
             > Duration::from_millis(self.update_delay)
         {
             server.run_background_update();
-            // let api = PiHoleAPI::new(server.host.clone(), server.api_key.clone());
-            // let mut rt = Runtime::new().expect("Failed to start async runtime");
-
-            // rt.block_on(async {
-            //     server.last_data.summary = api.get_summary().await.ok();
-            //     server.last_data.top_sources = api.get_top_clients(None).await.ok();
-            //     server.last_data.top_items = api.get_top_items(None).await.ok();
-            //     server.last_data.over_time_data = api.get_over_time_data_10_mins().await.ok();
-            // })
         }
 
         server.check_background_update();
@@ -124,6 +115,26 @@ impl App {
         if self.graph_squash_factor < usize::MAX {
             self.graph_squash_factor *= 2;
         }
+    }
+
+    pub fn on_e(&self) {
+        let server = &self.servers[self.selected_server_index];
+        let api = PiHoleAPI::new(server.host.clone(), server.api_key.clone());
+        let mut rt = Runtime::new().expect("Failed to start async runtime");
+
+        rt.block_on(async {
+            api.enable().await.expect("Failed to enable pi-hole");
+        });
+    }
+
+    pub fn on_d(&self) {
+        let server = &self.servers[self.selected_server_index];
+        let api = PiHoleAPI::new(server.host.clone(), server.api_key.clone());
+        let mut rt = Runtime::new().expect("Failed to start async runtime");
+
+        rt.block_on(async {
+            api.disable(60).await.expect("Failed to disable pi-hole");
+        });
     }
 }
 
