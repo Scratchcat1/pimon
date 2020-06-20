@@ -131,7 +131,6 @@ where
                     Text::raw(format!("NXDOMAIN: {}\n", &summary.reply_nxdomain)),
                     Text::raw(format!("CNAME: {}\n", &summary.reply_cname)),
                     Text::raw(format!("IP: {}\n", &summary.reply_ip)),
-                    // Text::raw(format!("Gravity update: {} days\n", &summary.unique_clients)),
                 ];
                 let paragraph = Paragraph::new(text.iter()).block(responses_block);
                 f.render_widget(paragraph, chunks[3]);
@@ -191,10 +190,51 @@ where
     };
 }
 
+pub fn draw_statistics<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
+where
+    B: Backend,
+{
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Ratio(1, 3),
+                Constraint::Ratio(1, 3),
+                Constraint::Ratio(1, 3),
+            ]
+            .as_ref(),
+        )
+        .split(area);
+
+    let top_queries_rows = match &app.servers[app.selected_server_index].last_data.top_items {
+        Some(top_items) => util::order_convert_string_num_map(&top_items.top_queries),
+        None => Vec::new(),
+    };
+
+    let top_ads_rows = match &app.servers[app.selected_server_index].last_data.top_items {
+        Some(top_items) => util::order_convert_string_num_map(&top_items.top_ads),
+        None => Vec::new(),
+    };
+
+    let top_clients_rows = match &app.servers[app.selected_server_index].last_data.top_sources {
+        Some(top_sources) => util::order_convert_string_num_map(&top_sources.top_sources),
+        None => Vec::new(),
+    };
+
+    let header = vec!["Domain".to_string(), "Count".to_string()];
+    draw_list(f, chunks[0], "Top Queries", &header, &top_queries_rows);
+
+    let header = vec!["Domain".to_string(), "Count".to_string()];
+    draw_list(f, chunks[1], "Top Ads", &header, &top_ads_rows);
+
+    let header = vec!["Client".to_string(), "Count".to_string()];
+    draw_list(f, chunks[2], "Top Clients", &header, &top_clients_rows);
+}
+
 pub fn draw_list<B>(
     f: &mut Frame<B>,
     area: Rect,
-    title: String,
+    title: &str,
     header: &Vec<String>,
     rows: &Vec<Vec<String>>,
 ) where
@@ -240,57 +280,8 @@ where
     draw_overview(f, app, chunks[2]);
 
     // Queries chart
-    // Vec<String, u64>
     draw_queries_chart(f, app, chunks[3]);
 
     // Top domains
-    {
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(
-                [
-                    Constraint::Ratio(1, 3),
-                    Constraint::Ratio(1, 3),
-                    Constraint::Ratio(1, 3),
-                ]
-                .as_ref(),
-            )
-            .split(chunks[4]);
-
-        let top_queries_rows = match &app.servers[app.selected_server_index].last_data.top_items {
-            Some(top_items) => util::order_convert_string_num_map(&top_items.top_queries),
-            None => Vec::new(),
-        };
-
-        let top_ads_rows = match &app.servers[app.selected_server_index].last_data.top_items {
-            Some(top_items) => util::order_convert_string_num_map(&top_items.top_ads),
-            None => Vec::new(),
-        };
-
-        let top_clients_rows = match &app.servers[app.selected_server_index].last_data.top_sources {
-            Some(top_sources) => util::order_convert_string_num_map(&top_sources.top_sources),
-            None => Vec::new(),
-        };
-
-        let header = vec!["Domain".to_string(), "Count".to_string()];
-        draw_list(
-            f,
-            chunks[0],
-            "Top Queries".to_string(),
-            &header,
-            &top_queries_rows,
-        );
-
-        let header = vec!["Domain".to_string(), "Count".to_string()];
-        draw_list(f, chunks[1], "Top Ads".to_string(), &header, &top_ads_rows);
-
-        let header = vec!["Client".to_string(), "Count".to_string()];
-        draw_list(
-            f,
-            chunks[2],
-            "Top Clients".to_string(),
-            &header,
-            &top_clients_rows,
-        );
-    }
+    draw_statistics(f, app, chunks[4]);
 }
