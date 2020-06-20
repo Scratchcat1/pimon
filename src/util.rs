@@ -181,7 +181,7 @@ struct PiHoleServerConfig {
 }
 
 pub fn load_server_from_json(path: &PathBuf) -> Result<App, Box<dyn Error>> {
-    let f = File::open(path).unwrap();
+    let f = File::open(path).expect("Configuration file not found");
     let pimon_config: PimonConfig = serde_json::from_reader(&f)?;
     Ok(App::from(pimon_config))
 }

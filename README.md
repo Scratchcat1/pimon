@@ -2,7 +2,7 @@
 Pi-Hole terminal monitoring tool
 
 ## Example
-![Example gif](./example.gif)
+![Example gif](./assets/example.gif)
 
 # Features
 - Support for multiple servers
@@ -17,8 +17,8 @@ For convenience you may want to alias `pimon` to point at a particular config e.
 - Quit: `q`
 - Force update: `<Space>`
 - Tab navigation:
-  - Previous server: `<left>`
-  - Next server: `<right>`
+  - Previous server: `<Left>`
+  - Next server: `<Right>`
 - Graph navigation:
   - Zoom in: `z`
   - Zoom in: `x`
@@ -26,6 +26,11 @@ For convenience you may want to alias `pimon` to point at a particular config e.
 - Disable current server: `d`
 
 ## Installation
+
+### Cargo
+```
+cargo install pimon
+```
 
 ## CLI options
 ```
@@ -42,20 +47,26 @@ OPTIONS:
     -c, --config-file-path <config-file-path>    Path to configuration file [default: pimon.json]
 ```
 
-## Configuration
+## Example Configuration
+Note: A prefix of `http://` or `https://` is required for the host attribute.
 ```json
 {
+    // List of servers. Length must be >= 1.
     "servers": [
         {
+            // Name of server
             "name": "Example 1",
+            // Host prefixed with protocol
             "host": "http://192.168.1.1",
+            // Optional API Key (From Pi-Hole interface -> Settings -> API -> Show API Token)
             "api_key": "0123456789abcedf0123456789abcedf0123456789abcedf0123456789abcedf"
         },
         {
             "name": "Example 2",
-            "host": "http://192.168.0.42"
+            "host": "http://pihole.local"
         }
     ],
+    // Delay between updates in milliseconds
     "update_delay": 5000
 }
 ```

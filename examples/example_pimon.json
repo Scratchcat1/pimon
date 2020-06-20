@@ -1,0 +1,18 @@
+{
+    "servers": [
+        {
+            "name": "Example 1",
+            "host": "http://192.168.1.1",
+            "api_key": "0123456789abcedf0123456789abcedf0123456789abcedf0123456789abcedf"
+        },
+        {
+            "name": "Example 2",
+            "host": "http://192.168.0.42"
+        },
+        {
+            "name": "Example 3",
+            "host": "http://192.168.0.123"
+        }
+    ],
+    "update_delay": 5000
+}
