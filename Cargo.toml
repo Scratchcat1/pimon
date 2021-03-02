@@ -1,6 +1,6 @@
 [package]
 name = "pimon"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Connor Holloway <root_pfad@protonmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -13,7 +13,7 @@ categories = ["command-line-utilities"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tui = "0.9.5"
+tui = "0.14.0"
 termion = "1.5.5"
 pi-hole-api = "0.1.1"
 tokio = "0.2.21"

@@ -66,7 +66,12 @@ impl PiHoleServer {
             None => {}
         }
         if join {
-            self.background_updater = None;
+            if let Some(background_updater) = self.background_updater.take() {
+                background_updater
+                    .handle
+                    .join()
+                    .expect("Unable to join background updater thread");
+            }
         }
     }
 }

@@ -4,7 +4,8 @@ use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
-    widgets::{BarChart, Block, BorderType, Borders, Paragraph, Row, Table, Tabs, Text},
+    text::{Span, Spans, Text},
+    widgets::{BarChart, Block, BorderType, Borders, Cell, Paragraph, Row, Table, Tabs},
     Frame,
 };
 
@@ -12,10 +13,10 @@ pub fn draw_help_bar<B>(f: &mut Frame<B>, area: Rect)
 where
     B: Backend,
 {
-    let text = vec![Text::raw(
+    let text = Text::raw(
         "E: Enable  D: Disable  Z: Zoom+  X: Zoom-  Space: Update  LArrow: Prev  RArrow: Next",
-    )];
-    let paragraph = Paragraph::new(text.iter()).style(Style::default().bg(Color::Cyan));
+    );
+    let paragraph = Paragraph::new(text).style(Style::default().bg(Color::Cyan));
     f.render_widget(paragraph, area);
 }
 
@@ -23,11 +24,20 @@ pub fn draw_tabs<B>(f: &mut Frame<B>, app: &mut App, area: Rect)
 where
     B: Backend,
 {
-    let server_names: Vec<&String> = app.servers.iter().map(|server| &server.name).collect();
-    let tabs = Tabs::default()
+    let server_names = app
+        .servers
+        .iter()
+        .map(|server| &server.name)
+        .cloned()
+        .map(|server_name| {
+            Spans::from(vec![Span::styled(
+                server_name,
+                Style::default().fg(Color::LightYellow),
+            )])
+        })
+        .collect();
+    let tabs = Tabs::new(server_names)
         .block(Block::default().borders(Borders::ALL).title("Pi Hole"))
-        .titles(&server_names)
-        .style(Style::default().fg(Color::LightYellow))
         .highlight_style(Style::default().fg(Color::LightGreen))
         .select(app.selected_server_index);
     f.render_widget(tabs, area);
@@ -82,57 +92,91 @@ where
                 };
 
                 let text = vec![
-                    Text::raw("Status: "),
-                    Text::styled(
-                        format!("{}\n", summary.status),
-                        Style::default().fg(styled_status_colour),
-                    ),
-                    Text::raw("API key: "),
-                    Text::styled(
-                        format!(
-                            "{}\n",
-                            !&app.servers[app.selected_server_index].api_key.is_none()
+                    Spans::from(vec![
+                        Span::raw("Status: "),
+                        Span::styled(
+                            format!("{}", summary.status),
+                            Style::default().fg(styled_status_colour),
                         ),
-                        Style::default().fg(styled_api_key_colour),
-                    ),
-                    Text::raw(format!("Privacy level: {}\n", &summary.privacy_level)),
-                    Text::raw(format!(
-                        "Blocklist size: {}\n",
+                    ]),
+                    Spans::from(vec![
+                        Span::raw("API key: "),
+                        Span::styled(
+                            format!(
+                                "{}",
+                                !&app.servers[app.selected_server_index].api_key.is_none()
+                            ),
+                            Style::default().fg(styled_api_key_colour),
+                        ),
+                    ]),
+                    Spans::from(vec![Span::raw(format!(
+                        "Privacy level: {}",
+                        &summary.privacy_level
+                    ))]),
+                    Spans::from(vec![Span::raw(format!(
+                        "Blocklist size: {}",
                         &summary.domains_being_blocked
-                    )),
+                    ))]),
                 ];
-                let paragraph = Paragraph::new(text.iter()).block(summary_block);
+                let paragraph = Paragraph::new(text).block(summary_block);
                 f.render_widget(paragraph, chunks[0]);
             }
             {
                 let text = vec![
-                    Text::raw(format!("Queries: {}\n", &summary.dns_queries_today)),
-                    Text::raw(format!("Ads blocked: {}\n", &summary.ads_blocked_today)),
-                    Text::raw(format!("Ads percent: {}\n", &summary.ads_percentage_today)),
-                    Text::raw(format!("Unique domains: {}\n", &summary.unique_domains)),
+                    Spans::from(vec![Span::raw(format!(
+                        "Queries: {}",
+                        &summary.dns_queries_today
+                    ))]),
+                    Spans::from(vec![Span::raw(format!(
+                        "Ads blocked: {}",
+                        &summary.ads_blocked_today
+                    ))]),
+                    Spans::from(vec![Span::raw(format!(
+                        "Ads percent: {}",
+                        &summary.ads_percentage_today
+                    ))]),
+                    Spans::from(vec![Span::raw(format!(
+                        "Unique domains: {}",
+                        &summary.unique_domains
+                    ))]),
                 ];
-                let paragraph = Paragraph::new(text.iter()).block(query_stats_block);
+                let paragraph = Paragraph::new(text).block(query_stats_block);
                 f.render_widget(paragraph, chunks[1]);
             }
 
             {
                 let text = vec![
-                    Text::raw(format!("Forwarded: {}\n", &summary.queries_forwarded)),
-                    Text::raw(format!("Cached: {}\n", &summary.queries_cached)),
-                    Text::raw(format!("Unique clients: {}\n", &summary.unique_clients)),
+                    Spans::from(vec![Span::raw(format!(
+                        "Forwarded: {}",
+                        &summary.queries_forwarded
+                    ))]),
+                    Spans::from(vec![Span::raw(format!(
+                        "Cached: {}",
+                        &summary.queries_cached
+                    ))]),
+                    Spans::from(vec![Span::raw(format!(
+                        "Unique clients: {}",
+                        &summary.unique_clients
+                    ))]),
                 ];
-                let paragraph = Paragraph::new(text.iter()).block(other_stats_block);
+                let paragraph = Paragraph::new(text).block(other_stats_block);
                 f.render_widget(paragraph, chunks[2]);
             }
 
             {
                 let text = vec![
-                    Text::raw(format!("NODATA: {}\n", &summary.reply_nodata)),
-                    Text::raw(format!("NXDOMAIN: {}\n", &summary.reply_nxdomain)),
-                    Text::raw(format!("CNAME: {}\n", &summary.reply_cname)),
-                    Text::raw(format!("IP: {}\n", &summary.reply_ip)),
+                    Spans::from(vec![Span::raw(format!(
+                        "NODATA: {}",
+                        &summary.reply_nodata
+                    ))]),
+                    Spans::from(vec![Span::raw(format!(
+                        "NXDOMAIN: {}",
+                        &summary.reply_nxdomain
+                    ))]),
+                    Spans::from(vec![Span::raw(format!("CNAME: {}", &summary.reply_cname))]),
+                    Spans::from(vec![Span::raw(format!("IP: {}", &summary.reply_ip))]),
                 ];
-                let paragraph = Paragraph::new(text.iter()).block(responses_block);
+                let paragraph = Paragraph::new(text).block(responses_block);
                 f.render_widget(paragraph, chunks[3]);
             }
         }
@@ -182,7 +226,7 @@ where
                 .block(block)
                 .data(&queries_over_time_str_rows)
                 .bar_width(5)
-                .style(Style::default().fg(Color::Green))
+                .bar_style(Style::default().fg(Color::Green))
                 .value_style(Style::default().fg(Color::Black).bg(Color::Green));
             f.render_widget(bar_chart, area);
         }
@@ -243,11 +287,18 @@ pub fn draw_list<B>(
     let up_style = Style::default().fg(Color::LightGreen);
     let rows = rows.iter().map(|row| {
         let style = up_style;
-        Row::StyledData(row.iter(), style)
+        Row::new(row.iter().map(|text| Cell::from(text.clone()).style(style)))
     });
-    let table = Table::new(header.iter(), rows)
-        .block(Block::default().title(&title).borders(Borders::ALL))
-        .header_style(Style::default().fg(Color::LightCyan))
+    let table = Table::new(rows)
+        .block(
+            Block::default()
+                .title(vec![Span::from(title)])
+                .borders(Borders::ALL),
+        )
+        .header(
+            Row::new(header.iter().map(|text| Cell::from(text.clone())))
+                .style(Style::default().fg(Color::LightCyan)),
+        )
         .widths(&[Constraint::Percentage(70), Constraint::Percentage(30)]);
     f.render_widget(table, area);
 }
