@@ -6,7 +6,7 @@ use event::{Config, Event, Events};
 use std::path::PathBuf;
 use std::{error::Error, io, time::Duration};
 use structopt::StructOpt;
-use termion::{event::Key, input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
+use termion::{event::Key, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{backend::TermionBackend, Terminal};
 
 #[derive(StructOpt)]
