@@ -59,6 +59,7 @@ impl PiHoleServer {
                         None => {}
                     }
                     join = true;
+                    self.last_update = Instant::now();
                 }
                 Err(_) => {}
             },
@@ -92,17 +93,17 @@ impl App {
 
     pub fn on_tick(&mut self) {
         let server = &mut self.servers[self.selected_server_index];
+        server.check_background_update();
         if Instant::now().duration_since(server.last_update)
             > Duration::from_millis(self.update_delay)
         {
             server.run_background_update();
         }
-
-        server.check_background_update();
     }
 
     pub fn on_space(&mut self) {
-        self.on_tick();
+        let server = &mut self.servers[self.selected_server_index];
+        server.run_background_update();
     }
 
     pub fn on_z(&mut self) {
