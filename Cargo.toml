@@ -1,6 +1,6 @@
 [package]
 name = "pimon"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Connor Holloway <root_pfad@protonmail.com>"]
 edition = "2018"
 license = "MIT"
