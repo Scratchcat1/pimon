@@ -1,13 +1,21 @@
-mod event;
+// mod custom_event;
 mod ui;
 mod util;
 
-use event::{Config, Event, Events};
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+// use custom_event::{Config, CustomEvent, CustomEvents};
 use std::path::PathBuf;
-use std::{error::Error, io, time::Duration};
+use std::{
+    error::Error,
+    io,
+    time::{Duration, Instant},
+};
 use structopt::StructOpt;
-use termion::{event::Key, raw::IntoRawMode, screen::AlternateScreen};
-use tui::{backend::TermionBackend, Terminal};
+use tui::{backend::CrosstermBackend, Terminal};
 
 #[derive(StructOpt)]
 struct Cli {
@@ -28,57 +36,75 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Terminal initialization
-    let stdout = io::stdout().into_raw_mode()?;
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
     // let stdout = MouseTerminal::from(stdout);
-    let stdout = AlternateScreen::from(stdout);
-    let backend = TermionBackend::new(stdout);
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     // terminal.hide_cursor()?;
 
-    // Setup event handlers
-    let events = Events::with_config(Config {
-        tick_rate: Duration::from_millis(1000),
-        ..Config::default()
-    });
+    // // Setup event handlers
+    // let events = Events::with_config(Config {
+    //     tick_rate: Duration::from_millis(1000),
+    //     ..Config::default()
+    // });
 
     app.on_tick();
-
+    let tick_rate = Duration::from_millis(1000);
+    let mut last_tick = Instant::now();
     loop {
         terminal.draw(|mut f| ui::draw_ui(&mut f, &mut app))?;
 
-        match events.next()? {
-            Event::Input(key) => match key {
-                Key::Char('q') => {
-                    break;
+        let timeout = tick_rate
+            .checked_sub(last_tick.elapsed())
+            .unwrap_or_else(|| Duration::from_secs(0));
+
+        if crossterm::event::poll(timeout)? {
+            if let Event::Key(key) = event::read()? {
+                match key.code {
+                    KeyCode::Char('q') => {
+                        break;
+                    }
+                    KeyCode::Left => {
+                        app.previous_server();
+                    }
+                    KeyCode::Right => {
+                        app.next_server();
+                    }
+                    KeyCode::Char(' ') => {
+                        app.on_space();
+                    }
+                    KeyCode::Char('z') => {
+                        app.on_z();
+                    }
+                    KeyCode::Char('x') => {
+                        app.on_x();
+                    }
+                    KeyCode::Char('e') => {
+                        app.on_e();
+                    }
+                    KeyCode::Char('d') => {
+                        app.on_d();
+                    }
+                    _ => {}
                 }
-                Key::Left => {
-                    app.previous_server();
-                }
-                Key::Right => {
-                    app.next_server();
-                }
-                Key::Char(' ') => {
-                    app.on_space();
-                }
-                Key::Char('z') => {
-                    app.on_z();
-                }
-                Key::Char('x') => {
-                    app.on_x();
-                }
-                Key::Char('e') => {
-                    app.on_e();
-                }
-                Key::Char('d') => {
-                    app.on_d();
-                }
-                _ => {}
-            },
-            Event::Tick => {
-                app.on_tick();
             }
         }
+        if last_tick.elapsed() >= tick_rate {
+            app.on_tick();
+            last_tick = Instant::now();
+        }
     }
+
+    // restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
 
     Ok(())
 }

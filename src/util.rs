@@ -1,4 +1,7 @@
-use pi_hole_api::{OverTimeData, PiHoleAPI, Summary, TopClients, TopItems};
+use pi_hole_api::{
+    api_types::{OverTimeData, Summary, TopClients, TopItems},
+    AuthenticatedPiHoleAPI, PiHoleAPIConfig, PiHoleAPIConfigWithKey, UnauthenticatedPiHoleAPI,
+};
 use serde::Deserialize;
 use serde_json;
 use std::collections::HashMap;
@@ -8,13 +11,42 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self};
 use std::thread;
 use std::time::{Duration, Instant};
-use tokio::runtime::Runtime;
 
 pub struct PiHoleData {
     pub summary: Option<Summary>,
     pub top_sources: Option<TopClients>,
     pub top_items: Option<TopItems>,
     pub over_time_data: Option<OverTimeData>,
+}
+
+pub enum PiHoleConfigImplementation {
+    Default(PiHoleAPIConfig),
+    WithKey(PiHoleAPIConfigWithKey),
+}
+
+impl PiHoleConfigImplementation {
+    pub fn new(host: String, api_key: Option<String>) -> Self {
+        match api_key {
+            Some(key) => {
+                PiHoleConfigImplementation::WithKey(PiHoleAPIConfigWithKey::new(host, key))
+            }
+            None => PiHoleConfigImplementation::Default(PiHoleAPIConfig::new(host)),
+        }
+    }
+
+    pub fn get_unauthenticated_api(&self) -> Option<&dyn UnauthenticatedPiHoleAPI> {
+        Some(match self {
+            Self::Default(config) => config,
+            Self::WithKey(config) => config,
+        })
+    }
+
+    pub fn get_authenticated_api(&self) -> Option<&dyn AuthenticatedPiHoleAPI> {
+        match self {
+            Self::Default(_) => None,
+            Self::WithKey(config) => Some(config),
+        }
+    }
 }
 
 struct BackgroundUpdater {
@@ -26,12 +58,37 @@ pub struct PiHoleServer {
     pub name: String,
     pub host: String,
     pub api_key: Option<String>,
+    pub api_config: PiHoleConfigImplementation,
     pub last_update: Instant,
     pub last_data: PiHoleData,
     background_updater: Option<BackgroundUpdater>,
 }
 
 impl PiHoleServer {
+    pub fn new(
+        name: String,
+        host: String,
+        api_key: Option<String>,
+        update_delay: Duration,
+    ) -> Self {
+        let api_config = PiHoleConfigImplementation::new(host.clone(), api_key.clone());
+        PiHoleServer {
+            name: name,
+            host: host,
+            api_key: api_key,
+            api_config: api_config,
+            last_update: Instant::now()
+                .checked_sub(update_delay)
+                .expect("Failed to set last update"),
+            last_data: PiHoleData {
+                summary: None,
+                top_sources: None,
+                top_items: None,
+                over_time_data: None,
+            },
+            background_updater: None,
+        }
+    }
     pub fn run_background_update(&mut self) {
         if self.background_updater.is_none() {
             let (tx, rx) = mpsc::channel();
@@ -123,24 +180,26 @@ impl App {
         }
     }
 
-    pub fn on_e(&self) {
-        let server = &self.servers[self.selected_server_index];
-        let api = PiHoleAPI::new(server.host.clone(), server.api_key.clone());
-        let mut rt = Runtime::new().expect("Failed to start async runtime");
-
-        rt.block_on(async {
-            api.enable().await.expect("Failed to enable pi-hole");
-        });
+    pub fn on_e(&mut self) {
+        let server = &mut self.servers[self.selected_server_index];
+        match server.api_config.get_authenticated_api() {
+            None => {}
+            Some(api) => {
+                api.enable().expect("Failed to enable pi-hole");
+            }
+        };
+        server.run_background_update();
     }
 
-    pub fn on_d(&self) {
-        let server = &self.servers[self.selected_server_index];
-        let api = PiHoleAPI::new(server.host.clone(), server.api_key.clone());
-        let mut rt = Runtime::new().expect("Failed to start async runtime");
-
-        rt.block_on(async {
-            api.disable(60).await.expect("Failed to disable pi-hole");
-        });
+    pub fn on_d(&mut self) {
+        let server = &mut self.servers[self.selected_server_index];
+        match server.api_config.get_authenticated_api() {
+            None => {}
+            Some(api) => {
+                api.disable(60).expect("Failed to disable pi-hole");
+            }
+        };
+        server.run_background_update();
     }
 }
 
@@ -153,20 +212,13 @@ impl From<PimonConfig> for App {
             servers: config
                 .servers
                 .iter()
-                .map(|server| PiHoleServer {
-                    name: server.name.clone(),
-                    host: server.host.clone(),
-                    api_key: server.api_key.clone(),
-                    last_update: Instant::now()
-                        .checked_sub(Duration::from_millis(config.update_delay))
-                        .expect("Failed to set last update"),
-                    last_data: PiHoleData {
-                        summary: None,
-                        top_sources: None,
-                        top_items: None,
-                        over_time_data: None,
-                    },
-                    background_updater: None,
+                .map(|server| {
+                    PiHoleServer::new(
+                        server.name.clone(),
+                        server.host.clone(),
+                        server.api_key.clone(),
+                        Duration::from_millis(config.update_delay),
+                    )
                 })
                 .collect(),
         }
@@ -205,22 +257,27 @@ pub fn order_convert_string_num_map(map: &HashMap<String, u64>) -> Vec<Vec<Strin
 }
 
 fn background_update(tx: mpsc::Sender<Option<PiHoleData>>, host: String, api_key: Option<String>) {
-    let api = PiHoleAPI::new(host.clone(), api_key);
-    let mut rt = Runtime::new().expect("Failed to start async runtime");
+    let api_config = PiHoleConfigImplementation::new(host, api_key);
 
-    rt.block_on(async {
-        tx.send(Some(PiHoleData {
-            summary: api.get_summary().await.ok(),
-            top_sources: api.get_top_clients(None).await.ok(),
-            top_items: api.get_top_items(None).await.ok(),
-            over_time_data: api.get_over_time_data_10_mins().await.ok(),
-        }))
-    })
+    tx.send(Some(PiHoleData {
+        summary: api_config
+            .get_unauthenticated_api()
+            .and_then(|api| api.get_summary().ok()),
+        top_sources: api_config
+            .get_authenticated_api()
+            .and_then(|api| api.get_top_clients(Some(25)).ok()),
+        top_items: api_config
+            .get_authenticated_api()
+            .and_then(|api| api.get_top_items(Some(25)).ok()),
+        over_time_data: api_config
+            .get_unauthenticated_api()
+            .and_then(|api| api.get_over_time_data_10_mins().ok()),
+    }))
     .unwrap();
 }
 
 pub fn squash_queries_over_time(
-    queries: &Vec<(&i64, &u64)>,
+    queries: &Vec<(i64, u64)>,
     squash_factor: usize,
 ) -> Vec<(i64, u64)> {
     let mut squashed = Vec::new();
@@ -230,10 +287,10 @@ pub fn squash_queries_over_time(
 
     for (timestamp, query_count) in queries {
         if count == 0 {
-            leading_timestamp = **timestamp;
+            leading_timestamp = *timestamp;
         }
         count += 1;
-        sum += **query_count;
+        sum += query_count;
         if count >= squash_factor {
             squashed.push((leading_timestamp, sum));
             count = 0;

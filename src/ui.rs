@@ -1,5 +1,6 @@
 use crate::util::{self, App};
 use chrono::{DateTime, NaiveDateTime, Utc};
+use std::str::FromStr;
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -201,12 +202,15 @@ where
         .over_time_data
     {
         Some(over_time_data) => {
-            let mut queries_over_time_rows: Vec<(&i64, &u64)> =
-                over_time_data.domains_over_time.iter().collect();
+            let mut queries_over_time_rows: Vec<(i64, u64)> = over_time_data
+                .domains_over_time
+                .iter()
+                .map(|(time, count)| (i64::from_str(time).unwrap(), *count))
+                .collect();
 
             // Display with left as the latest entry.
             // Otherwise the data is cut off on the right side.
-            queries_over_time_rows.sort_by(|a, b| b.0.cmp(a.0));
+            queries_over_time_rows.sort_by(|a, b| b.0.cmp(&a.0));
             let squashed_queries_over_time =
                 util::squash_queries_over_time(&queries_over_time_rows, app.graph_squash_factor);
             let queries_over_time_rows: Vec<(String, u64)> = squashed_queries_over_time
